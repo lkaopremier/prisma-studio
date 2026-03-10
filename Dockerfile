@@ -8,6 +8,7 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY entrypoint.sh proxy.js login.html ./
+COPY public/ ./public/
 RUN chmod +x entrypoint.sh
 
 ENV PORT=3000

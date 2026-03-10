@@ -45,6 +45,7 @@ const loginLimiter = rateLimit({
 })
 
 app.get('/healthz', (_req, res) => res.json({ status: 'ok' }))
+app.use('/public', express.static(path.join(__dirname, 'public')))
 
 app.get('/auth/login', (req, res) => {
   if (req.session.authenticated) return res.redirect('/')
@@ -80,7 +81,7 @@ app.use((req, res, next) => {
 const LOGOUT_BAR = `
 <div id="__proxy_bar" style="position:fixed;top:0;left:0;right:0;z-index:99999;display:flex;align-items:center;justify-content:space-between;padding:6px 16px;background:#18181b;border-bottom:1px solid #27272a;font-family:-apple-system,sans-serif;font-size:13px;color:#71717a;gap:12px;">
   <span style="display:flex;align-items:center;gap:8px;">
-    <svg width="16" height="16" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="#5b21b6"/><path d="M10 8h8a6 6 0 0 1 0 12H10V8z" fill="white" opacity="0.9"/><path d="M10 20h5l5 4H10v-4z" fill="white" opacity="0.5"/></svg>
+    <svg width="16" height="16" viewBox="0 0 64 64" fill="none"><path d="M18 22.3488C18 19.3948 20.3948 17 23.3488 17H58.6512C61.6052 17 64 19.3948 64 22.3488V57.6512C64 60.6052 61.6052 63 58.6512 63H23.3488C20.3948 63 18 60.6052 18 57.6512V22.3488Z" fill="#9F6BF4"/><path d="M0 6.34884C0 3.39476 2.39476 1 5.34884 1H40.6512C43.6052 1 46 3.39476 46 6.34884V41.6512C46 44.6052 43.6052 47 40.6512 47H5.34884C2.39476 47 0 44.6052 0 41.6512V6.34884Z" fill="#C9D3DB"/><path d="M46 17V41.7059C46 44.6297 43.5892 47 40.6154 47H18V22.2941C18 19.3703 20.4108 17 23.3846 17H46Z" fill="#8044E2"/></svg>
     Prisma Studio
   </span>
   <div style="display:flex;gap:8px;">
