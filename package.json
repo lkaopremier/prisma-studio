@@ -6,6 +6,8 @@
     "start": "sh entrypoint.sh"
   },
   "dependencies": {
+    "express": "^4.21.0",
+    "http-proxy-middleware": "^3.0.0",
     "prisma": "^6.0.0"
   }
 }

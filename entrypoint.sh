@@ -47,5 +47,13 @@ else
   npx prisma db pull || echo "Warning: introspection failed (empty database or connection error) — starting Studio anyway."
 fi
 
+if [ -z "$AUTH_PASSWORD" ]; then
+  echo "ERROR: AUTH_PASSWORD environment variable is required"
+  exit 1
+fi
+
 echo "Starting Prisma Studio..."
-exec npx prisma studio --port "${PORT:-5555}" --browser none
+npx prisma studio --port 5555 --browser none &
+
+echo "Starting auth proxy..."
+exec node /app/proxy.js

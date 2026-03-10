@@ -5,11 +5,11 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
-COPY entrypoint.sh ./
+COPY entrypoint.sh proxy.js ./
 RUN chmod +x entrypoint.sh
 
-ENV PORT=5555
+ENV PORT=3000
 
-EXPOSE 5555
+EXPOSE 3000
 
 CMD ["sh", "entrypoint.sh"]
