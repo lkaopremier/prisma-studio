@@ -1,0 +1,11 @@
+{
+  "name": "prisma-studio-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "sh entrypoint.sh"
+  },
+  "dependencies": {
+    "prisma": "^6.0.0"
+  }
+}
