@@ -1,6 +1,6 @@
 # prisma studio
 
-A minimal Docker service that runs [Prisma Studio](https://www.prisma.io/studio) behind a Basic Auth proxy, connected to any database via a `DATABASE_URL` environment variable. Designed to be deployed on [Coolify](https://coolify.io/) or any Docker-compatible platform.
+A minimal Docker service that runs [Prisma Studio](https://www.prisma.io/studio) behind a custom login page, connected to any database via a `DATABASE_URL` environment variable. Designed to be deployed on [Coolify](https://coolify.io/) or any Docker-compatible platform.
 
 ## How it works
 
@@ -10,7 +10,16 @@ On container startup:
 2. Generates `prisma/schema.prisma` with the right provider
 3. Introspects the database with `prisma db pull` (skipped for SQLite)
 4. Launches Prisma Studio internally on port 5555
-5. Starts a Basic Auth proxy on the public port (default: 3000)
+5. Waits for Prisma Studio to be ready
+6. Starts an authenticated proxy on the public port (default: 3000)
+
+## Features
+
+- **Custom login page** — session-based authentication with a modern UI
+- **Rate limiting** — 10 login attempts per 15 minutes per IP
+- **Logout bar** — injected into Prisma Studio with a "Sign out" button
+- **Schema refresh** — re-runs `prisma db pull` without restarting the container
+- **Health check** — `GET /healthz` for Coolify / Docker health probes
 
 ## Supported databases
 
@@ -24,13 +33,15 @@ On container startup:
 
 ## Environment variables
 
-| Variable            | Required | Default      | Description                                     |
-| ------------------- | -------- | ------------ | ----------------------------------------------- |
-| `DATABASE_URL`      | yes      | —            | Full database connection string                 |
-| `AUTH_PASSWORD`     | yes      | —            | Password for Basic Auth                         |
-| `AUTH_USER`         | no       | `admin`      | Username for Basic Auth                         |
-| `PORT`              | no       | `3000`       | Port the auth proxy listens on                  |
-| `DATABASE_PROVIDER` | no       | `postgresql` | Fallback provider if URL scheme is unrecognized |
+| Variable            | Required | Default       | Description                                          |
+| ------------------- | -------- | ------------- | ---------------------------------------------------- |
+| `DATABASE_URL`      | yes      | —             | Full database connection string                      |
+| `AUTH_PASSWORD`     | yes      | —             | Login password                                       |
+| `AUTH_USER`         | no       | `admin`       | Login username                                       |
+| `SESSION_SECRET`    | no       | AUTH_PASSWORD | Secret for session signing (use a dedicated value)   |
+| `SECURE_COOKIE`     | no       | `false`       | Set to `true` when behind an HTTPS reverse proxy     |
+| `PORT`              | no       | `3000`        | Port the auth proxy listens on                       |
+| `DATABASE_PROVIDER` | no       | `postgresql`  | Fallback provider if URL scheme is unrecognized      |
 
 ## Usage
 
@@ -46,7 +57,7 @@ docker run \
   prisma-studio
 ```
 
-Then open [http://localhost:3000](http://localhost:3000) — a login prompt will appear.
+Then open [http://localhost:3000](http://localhost:3000).
 
 ### SQLite (with volume mount)
 
@@ -70,15 +81,25 @@ services:
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/mydb
       AUTH_PASSWORD: secret
-      AUTH_USER: admin
+      SESSION_SECRET: a-long-random-secret
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 ```
 
 ## Coolify deployment
 
 1. Create a new service in Coolify → **Docker Build** → point to this repository
-2. Set `DATABASE_URL` and `AUTH_PASSWORD` in the environment variables
-3. Expose port `3000` (or set `PORT` to a different value)
-4. Deploy — Prisma Studio will be available at the Coolify-assigned URL behind Basic Auth
+2. Set the environment variables:
+   - `DATABASE_URL` (required)
+   - `AUTH_PASSWORD` (required)
+   - `SESSION_SECRET` (recommended)
+   - `SECURE_COOKIE=true` (recommended — Coolify handles HTTPS termination)
+3. Expose port `3000`
+4. Set the health check path to `/healthz`
+5. Deploy
 
 ## License
 
