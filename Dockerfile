@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 
-COPY entrypoint.sh proxy.js ./
+COPY entrypoint.sh proxy.js login.html ./
 RUN chmod +x entrypoint.sh
 
 ENV PORT=3000

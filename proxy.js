@@ -1,5 +1,7 @@
 const express = require('express')
+const session = require('express-session')
 const { createProxyMiddleware } = require('http-proxy-middleware')
+const path = require('path')
 
 const USER = process.env.AUTH_USER || 'admin'
 const PASSWORD = process.env.AUTH_PASSWORD
@@ -11,24 +13,37 @@ if (!PASSWORD) {
 
 const app = express()
 
+app.use(express.urlencoded({ extended: false }))
+
+const sessionMiddleware = session({
+  secret: process.env.SESSION_SECRET || PASSWORD,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, sameSite: 'lax' },
+})
+
+app.use(sessionMiddleware)
+
+app.get('/auth/login', (req, res) => {
+  if (req.session.authenticated) return res.redirect('/')
+  res.sendFile(path.join(__dirname, 'login.html'))
+})
+
+app.post('/auth/login', (req, res) => {
+  const { username, password } = req.body
+  if (username === USER && password === PASSWORD) {
+    req.session.authenticated = true
+    return res.redirect('/')
+  }
+  res.redirect('/auth/login?error=1')
+})
+
+app.get('/auth/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/auth/login'))
+})
+
 app.use((req, res, next) => {
-  const auth = req.headers.authorization
-
-  if (!auth || !auth.startsWith('Basic ')) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Prisma Studio"')
-    return res.status(401).send('Unauthorized')
-  }
-
-  const decoded = Buffer.from(auth.slice(6), 'base64').toString()
-  const colon = decoded.indexOf(':')
-  const user = decoded.slice(0, colon)
-  const pass = decoded.slice(colon + 1)
-
-  if (user !== USER || pass !== PASSWORD) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Prisma Studio"')
-    return res.status(401).send('Unauthorized')
-  }
-
+  if (!req.session.authenticated) return res.redirect('/auth/login')
   next()
 })
 
@@ -45,4 +60,13 @@ const server = app.listen(port, () => {
   console.log(`Auth proxy listening on port ${port}`)
 })
 
-server.on('upgrade', proxy.upgrade)
+server.on('upgrade', (req, socket, head) => {
+  sessionMiddleware(req, {}, () => {
+    if (!req.session?.authenticated) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
+      socket.destroy()
+      return
+    }
+    proxy.upgrade(req, socket, head)
+  })
+})
