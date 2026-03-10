@@ -44,7 +44,7 @@ if [ "$PROVIDER" = "sqlite" ]; then
   echo "SQLite detected — skipping introspection, using file directly."
 else
   echo "Introspecting database..."
-  npx prisma db pull
+  npx prisma db pull || echo "Warning: introspection failed (empty database or connection error) — starting Studio anyway."
 fi
 
 echo "Starting Prisma Studio..."
