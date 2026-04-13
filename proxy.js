@@ -50,7 +50,7 @@ function parseDatabases() {
   return urls.map((url, i) => ({
     name: extractDbName(url),
     url,
-    port: 40000 + i,
+    port: 40001 + i,
     index: i + 1,
   }))
 }
