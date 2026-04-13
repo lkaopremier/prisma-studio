@@ -50,7 +50,7 @@ function parseDatabases() {
   return urls.map((url, i) => ({
     name: extractDbName(url),
     url,
-    port: 15555 + i,
+    port: 40000 + i,
     index: i + 1,
   }))
 }
@@ -215,6 +215,15 @@ console.log('Waiting for Prisma Studio instances to be ready...')
 Promise.all(databases.map((db) => waitForPort(db.port)))
   .then(() => {
     const port = parseInt(process.env.PORT || '3000', 10)
+    const conflict = databases.find((db) => db.port === port)
+    if (conflict) {
+      console.error(
+        `ERROR: PORT=${port} conflicts with the internal Prisma Studio port for "${conflict.name}". ` +
+        `Set PORT to the public-facing port (e.g., PORT=3000). ` +
+        `Internal Studio ports in use: ${databases.map((db) => db.port).join(', ')}`
+      )
+      process.exit(1)
+    }
     const server = app.listen(port, () => {
       console.log(`Auth proxy listening on port ${port}`)
     })
