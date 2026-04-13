@@ -173,7 +173,7 @@ function buildLogoutBar(selectedIdx) {
     <a href="/auth/logout" style="padding:4px 12px;background:#27272a;color:#e2e2e6;text-decoration:none;border-radius:6px;font-size:12px;font-weight:500;">Sign out</a>
   </div>
 </div>
-<style>#__proxy_bar button:hover,#__proxy_bar a:hover{background:#3f3f46!important;}</style>
+<style>#root {height:calc(100vh - 37px);} #__proxy_bar button:hover,#__proxy_bar a:hover{background:#3f3f46!important;}</style>
 `
 }
 
