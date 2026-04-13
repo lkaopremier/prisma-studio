@@ -61,7 +61,7 @@ for DB_URL in "$@"; do
 
   PROVIDER="$(detect_provider "$DB_URL")"
   DB_NAME="$(extract_db_name "$DB_URL")"
-  PORT=$((5554 + i))
+  PORT=$((15554 + i))
   DIR="/app/prisma/db_$i"
 
   mkdir -p "$DIR"
