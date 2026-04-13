@@ -53,6 +53,9 @@ set +f
 
 mkdir -p /app/prisma
 
+# Studio ports are computed relative to the public PORT to guarantee no conflict
+PUBLIC_PORT="${PORT:-3000}"
+
 i=1
 for DB_URL in "$@"; do
   # Trim surrounding whitespace
@@ -61,7 +64,7 @@ for DB_URL in "$@"; do
 
   PROVIDER="$(detect_provider "$DB_URL")"
   DB_NAME="$(extract_db_name "$DB_URL")"
-  PORT=$((40000 + i))
+  STUDIO_PORT=$((PUBLIC_PORT + 10000 + i))
   DIR="/app/prisma/db_$i"
 
   mkdir -p "$DIR"
@@ -72,7 +75,7 @@ datasource db {
 }
 SCHEMA
 
-  echo "DB $i ($DB_NAME): provider=$PROVIDER, port=$PORT"
+  echo "DB $i ($DB_NAME): provider=$PROVIDER, port=$STUDIO_PORT"
 
   if [ "$PROVIDER" != "sqlite" ]; then
     echo "Introspecting DB $i..."
@@ -80,8 +83,8 @@ SCHEMA
       || echo "Warning: introspection failed for DB $i — starting Studio anyway."
   fi
 
-  echo "Starting Prisma Studio for DB $i on port $PORT..."
-  DATABASE_URL="$DB_URL" npx prisma studio --schema="$DIR/schema.prisma" --port "$PORT" --browser none &
+  echo "Starting Prisma Studio for DB $i on port $STUDIO_PORT..."
+  DATABASE_URL="$DB_URL" npx prisma studio --schema="$DIR/schema.prisma" --port "$STUDIO_PORT" --browser none &
 
   i=$((i + 1))
 done

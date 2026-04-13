@@ -35,7 +35,11 @@ function extractDbName(url) {
   return segment || 'Database'
 }
 
-// Parse DATABASE_URL — single URL or pipe-separated for multiple databases
+const PUBLIC_PORT = parseInt(process.env.PORT || '3000', 10)
+
+// Parse DATABASE_URL — single URL or pipe-separated for multiple databases.
+// Studio ports are computed relative to PUBLIC_PORT (PORT + 10001, PORT + 10002, ...)
+// so they can never conflict with the proxy port regardless of what PORT is set to.
 function parseDatabases() {
   const raw = process.env.DATABASE_URL
   if (!raw) {
@@ -50,7 +54,7 @@ function parseDatabases() {
   return urls.map((url, i) => ({
     name: extractDbName(url),
     url,
-    port: 40001 + i,
+    port: PUBLIC_PORT + 10001 + i,
     index: i + 1,
   }))
 }
@@ -214,18 +218,8 @@ function waitForPort(port, retries = 30, delay = 1000) {
 console.log('Waiting for Prisma Studio instances to be ready...')
 Promise.all(databases.map((db) => waitForPort(db.port)))
   .then(() => {
-    const port = parseInt(process.env.PORT || '3000', 10)
-    const conflict = databases.find((db) => db.port === port)
-    if (conflict) {
-      console.error(
-        `ERROR: PORT=${port} conflicts with the internal Prisma Studio port for "${conflict.name}". ` +
-        `Set PORT to the public-facing port (e.g., PORT=3000). ` +
-        `Internal Studio ports in use: ${databases.map((db) => db.port).join(', ')}`
-      )
-      process.exit(1)
-    }
-    const server = app.listen(port, () => {
-      console.log(`Auth proxy listening on port ${port}`)
+    const server = app.listen(PUBLIC_PORT, () => {
+      console.log(`Auth proxy listening on port ${PUBLIC_PORT}`)
     })
 
     server.on('upgrade', (req, socket, head) => {
