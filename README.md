@@ -16,12 +16,17 @@ Requests are routed to the Studio instance matching the database selected in the
 
 ## Features
 
-- **Custom login page** — session-based authentication with a modern UI
-- **Multi-database** — manage several databases from a single instance, switch with a dropdown
-- **Rate limiting** — 10 login attempts per 15 minutes per IP
-- **Logout bar** — injected into Prisma Studio with database selector, schema refresh, and sign out
+- **Custom login page** — session-based authentication, rate-limited (10 attempts / 15 min)
+- **Onboarding page** — database picker with live status indicators shown after login
+- **Multi-database** — manage several databases simultaneously, switch with a dropdown or the onboarding page
+- **Auto-restart** — each Studio instance is monitored and restarted automatically if it crashes
+- **Graceful shutdown** — `SIGTERM` / `SIGINT` cleanly terminates all Studio child processes
+- **CSRF protection** — all mutating endpoints are protected with a per-session token
+- **Security headers** — `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`
+- **Configurable session** — duration controlled via `SESSION_MAX_AGE` (default: 8 h)
+- **Custom error page** — friendly 502 page when a Studio instance is offline
 - **Schema refresh** — re-runs `prisma db pull` on the active database without restarting
-- **Health check** — `GET /healthz` for Coolify / Docker health probes
+- **Health check** — `GET /healthz` returns per-database status for Coolify / Docker probes
 
 ## Supported databases
 
@@ -41,11 +46,12 @@ Requests are routed to the Studio instance matching the database selected in the
 | `AUTH_PASSWORD`     | yes      | —             | Login password                                     |
 | `AUTH_USER`         | no       | `admin`       | Login username                                     |
 | `SESSION_SECRET`    | no       | AUTH_PASSWORD | Secret for session signing (use a dedicated value) |
+| `SESSION_MAX_AGE`   | no       | `28800000`    | Session duration in milliseconds (default: 8 h)    |
 | `SECURE_COOKIE`     | no       | `false`       | Set to `true` when behind an HTTPS reverse proxy   |
 | `PORT`              | no       | `3000`        | Port the auth proxy listens on                     |
 | `DATABASE_PROVIDER` | no       | `postgresql`  | Fallback provider if URL scheme is unrecognized    |
 
-Database names are automatically extracted from the URL path (e.g. `/production` → `production`). For SQL Server, the `database=` parameter is used.
+Database names are automatically extracted from the URL path (e.g. `/production` → `production`). For SQL Server, the `database=` parameter is used. Custom labels can be set with the `Label::url` syntax.
 
 ## Usage
 
@@ -61,7 +67,7 @@ docker run \
 
 ### Multiple databases
 
-Separate URLs with `|`:
+Separate URLs with `|`. An onboarding page appears after login to pick the database:
 
 ```bash
 docker run \
@@ -71,7 +77,11 @@ docker run \
   prisma-studio
 ```
 
-A dropdown appears in the top bar to switch between databases.
+Custom labels can be set with the `Label::url` syntax:
+
+```
+DATABASE_URL="Production::postgresql://...host/prod|Staging::mysql://...host/staging"
+```
 
 ### SQLite (with volume mount)
 

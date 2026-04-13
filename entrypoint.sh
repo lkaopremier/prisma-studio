@@ -12,26 +12,6 @@ detect_provider() {
   esac
 }
 
-extract_db_name() {
-  URL="$1"
-  case "$URL" in
-    sqlserver://*)
-      NAME=$(printf '%s' "$URL" | sed -n 's/.*[;?]database=\([^;&#]*\).*/\1/p')
-      printf '%s' "${NAME:-Database}"
-      ;;
-    file:*)
-      FILEPATH=$(printf '%s' "$URL" | sed 's/^file://')
-      FILENAME=$(basename "$FILEPATH")
-      printf '%s' "${FILENAME%.*}"
-      ;;
-    *)
-      # Remove query string then extract last path segment
-      NAME=$(printf '%s' "$URL" | sed 's/[?#].*//' | sed 's|.*/||')
-      printf '%s' "${NAME:-Database}"
-      ;;
-  esac
-}
-
 if [ -z "$AUTH_PASSWORD" ]; then
   echo "ERROR: AUTH_PASSWORD environment variable is required"
   exit 1
@@ -42,7 +22,7 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
-# Split pipe-separated URLs into positional parameters
+# Split pipe-separated entries into positional parameters
 set -f
 OLD_IFS="$IFS"
 IFS='|'
@@ -53,21 +33,23 @@ set +f
 
 mkdir -p /app/prisma
 
-# Studio ports are computed relative to the public PORT to guarantee no conflict
-PUBLIC_PORT="${PORT:-3000}"
-
+# Generate schemas and introspect all databases in parallel
 i=1
-for DB_URL in "$@"; do
-  # Trim surrounding whitespace
-  DB_URL=$(printf '%s' "$DB_URL" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-  [ -z "$DB_URL" ] && continue
+PIDS=""
+for ENTRY in "$@"; do
+  ENTRY=$(printf '%s' "$ENTRY" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  [ -z "$ENTRY" ] && continue
+
+  # Support optional "Label::url" format — extract the URL part
+  case "$ENTRY" in
+    *::*) DB_URL="${ENTRY#*::}" ;;
+    *)    DB_URL="$ENTRY" ;;
+  esac
 
   PROVIDER="$(detect_provider "$DB_URL")"
-  DB_NAME="$(extract_db_name "$DB_URL")"
-  STUDIO_PORT=$((PUBLIC_PORT + 10000 + i))
   DIR="/app/prisma/db_$i"
-
   mkdir -p "$DIR"
+
   cat > "$DIR/schema.prisma" <<SCHEMA
 datasource db {
   provider = "$PROVIDER"
@@ -75,24 +57,31 @@ datasource db {
 }
 SCHEMA
 
-  echo "DB $i ($DB_NAME): provider=$PROVIDER, port=$STUDIO_PORT"
+  echo "DB $i: provider=$PROVIDER"
 
   if [ "$PROVIDER" != "sqlite" ]; then
-    echo "Introspecting DB $i..."
-    DATABASE_URL="$DB_URL" npx prisma db pull --schema="$DIR/schema.prisma" \
-      || echo "Warning: introspection failed for DB $i — starting Studio anyway."
+    (
+      echo "Introspecting DB $i..."
+      DATABASE_URL="$DB_URL" npx prisma db pull --schema="$DIR/schema.prisma" \
+        || echo "Warning: introspection failed for DB $i — starting Studio anyway."
+    ) &
+    PIDS="$PIDS $!"
   fi
-
-  echo "Starting Prisma Studio for DB $i on port $STUDIO_PORT..."
-  DATABASE_URL="$DB_URL" npx prisma studio --schema="$DIR/schema.prisma" --port "$STUDIO_PORT" --browser none &
 
   i=$((i + 1))
 done
 
 if [ "$i" -eq 1 ]; then
-  echo "ERROR: No valid database URL found in DATABASES"
+  echo "ERROR: No valid database URL found in DATABASE_URL"
   exit 1
 fi
 
-echo "Starting auth proxy..."
+# Wait for all introspections to complete before starting Studio
+if [ -n "$PIDS" ]; then
+  for PID in $PIDS; do
+    wait "$PID" || true
+  done
+fi
+
+echo "Starting proxy (will launch Studio instances)..."
 exec node /app/proxy.js
