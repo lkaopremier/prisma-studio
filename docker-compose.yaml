@@ -5,6 +5,7 @@ services:
       - "3000:3000"
     environment:
       - DATABASE_URL=$DATABASE_URL
+      - AUTH_USER=$AUTH_USER
       - AUTH_PASSWORD=$AUTH_PASSWORD
       - SESSION_SECRET=$SESSION_SECRET
     healthcheck:
