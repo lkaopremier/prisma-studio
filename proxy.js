@@ -2,7 +2,7 @@ const express = require('express')
 const session = require('express-session')
 const rateLimit = require('express-rate-limit')
 const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware')
-const { exec, spawn } = require('child_process')
+const { spawn } = require('child_process')
 const http = require('http')
 const path = require('path')
 const crypto = require('crypto')
@@ -224,18 +224,6 @@ app.post('/auth/switch-db', requireAuth, csrfProtect, (req, res) => {
   res.redirect('/')
 })
 
-app.post('/auth/refresh', requireAuth, csrfProtect, (req, res) => {
-  const idx = Math.min(req.session.selectedDb ?? 0, databases.length - 1)
-  const db = databases[idx]
-  exec(
-    `npx prisma db pull --schema="/app/prisma/db_${db.index}/schema.prisma"`,
-    { cwd: '/app', env: { ...process.env, DATABASE_URL: db.url } },
-    (err, stdout, stderr) => {
-      if (err) return res.status(500).json({ error: stderr || err.message })
-      res.json({ ok: true, output: stdout })
-    }
-  )
-})
 
 app.get('/select', requireAuth, (req, res) => {
   res.send(buildSelectPage(req))
@@ -349,7 +337,6 @@ function buildLogoutBar(selectedIdx, csrfToken) {
   <span style="display:flex;align-items:center;gap:8px;">${PRISMA_LOGO_SM}Prisma Studio</span>
   <div style="display:flex;align-items:center;gap:8px;">${dbSection}</div>
   <div style="display:flex;gap:8px;">
-    <button onclick="fetch('/auth/refresh',{method:'POST',headers:{'X-CSRF-Token':'${csrf}'}}).then(r=>r.json()).then(d=>{if(d.ok)location.reload();else alert(d.error)})" style="padding:4px 12px;background:#27272a;color:#e2e2e6;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;">Refresh schema</button>
     <a href="/auth/logout" style="padding:4px 12px;background:#27272a;color:#e2e2e6;text-decoration:none;border-radius:6px;font-size:12px;font-weight:500;">Sign out</a>
   </div>
 </div>
