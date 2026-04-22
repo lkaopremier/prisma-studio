@@ -395,9 +395,9 @@ const proxy = createProxyMiddleware({
       if (type.includes('text/html')) {
         const bar = buildLogoutBar(getSelectedIdx(req), req.session?.csrfToken)
         const html = buffer.toString('utf8')
-        return html.includes('</body>')
-          ? html.replace('</body>', `${bar}</body>`)
-          : html + bar
+        return html.includes('<body')
+          ? html.replace(/(<body[^>]*>)/, `$1${bar}`)
+          : bar + html
       }
       return buffer
     }),
