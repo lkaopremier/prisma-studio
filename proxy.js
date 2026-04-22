@@ -90,7 +90,7 @@ function launchStudio(db) {
     'npx',
     [
       'prisma', 'studio',
-      `--schema=/app/prisma/db_${db.index}/schema.prisma`,
+      `--url=${db.url}`,
       `--port=${db.port}`,
       '--browser=none',
     ],
